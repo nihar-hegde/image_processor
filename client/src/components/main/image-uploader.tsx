@@ -21,7 +21,7 @@ export default function ImageUploader() {
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       const file = acceptedFiles[0];
-      if (file && file.type.startsWith("image/")) {
+      if (file && (file.type === "image/jpeg" || file.type === "image/png")) {
         setImage(file);
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -31,7 +31,7 @@ export default function ImageUploader() {
       } else {
         toast({
           title: "Invalid file type",
-          description: "Please upload an image file.",
+          description: "Please upload a JPG or PNG image file.",
           variant: "destructive",
         });
       }
@@ -42,7 +42,8 @@ export default function ImageUploader() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      "image/*": [],
+      "image/jpeg": [".jpg", ".jpeg"],
+      "image/png": [".png"],
     },
     multiple: false,
   });
@@ -57,7 +58,7 @@ export default function ImageUploader() {
       <CardHeader>
         <CardTitle>Image Uploader</CardTitle>
         <CardDescription>
-          Drag and drop or click to upload an image
+          Drag and drop or click to upload a JPG or PNG image
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -92,8 +93,8 @@ export default function ImageUploader() {
               <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
               <p className="mt-2 text-sm text-muted-foreground">
                 {isDragActive
-                  ? "Drop the image here"
-                  : "Drag and drop an image here, or click to select"}
+                  ? "Drop the JPG or PNG image here"
+                  : "Drag and drop a JPG or PNG image here, or click to select"}
               </p>
             </div>
           )}
