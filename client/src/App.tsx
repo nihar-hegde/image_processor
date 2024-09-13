@@ -1,8 +1,10 @@
+import ImageUploader from "./components/main/image-uploader";
+
 function App() {
   return (
-    <div>
-      <div className="flex flex-col items-center justify-center h-screen">
-        <h1 className="text-2xl font-bold">Hello WOrld</h1>
+    <div className="flex flex-col items-center justify-center h-screen">
+      <div>
+        <ImageUploader />
       </div>
     </div>
   );
