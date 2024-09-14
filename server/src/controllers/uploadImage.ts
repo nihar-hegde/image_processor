@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import path from "path";
 import fs from "fs";
 import multer from "multer";
+import sharp from "sharp";
 
 // Configure multer for file upload
 const storage = multer.diskStorage({
@@ -39,7 +40,7 @@ const upload = multer({
 });
 
 export const uploadImage = (req: Request, res: Response) => {
-  upload.single("image")(req, res, (err) => {
+  upload.single("image")(req, res, async (err) => {
     if (err instanceof multer.MulterError) {
       // A Multer error occurred when uploading.
       return res.status(400).json({ error: err.message });
@@ -53,9 +54,36 @@ export const uploadImage = (req: Request, res: Response) => {
       return res.status(400).json({ error: "No file uploaded." });
     }
 
-    res.status(200).json({
-      message: "File uploaded successfully",
-      filename: req.file.filename,
-    });
+    try {
+      // Generate a unique ID for the image
+      const imageId = Date.now().toString();
+      const originalPath = path.join(
+        "uploads",
+        "original",
+        `${imageId}${path.extname(req.file.filename)}`
+      );
+      const previewPath = path.join("uploads", "preview", `${imageId}.jpg`);
+
+      // Move the original file
+      fs.renameSync(req.file.path, originalPath);
+
+      // Create a low-quality preview
+      await sharp(originalPath)
+        .resize(800) // Resize to 800px width
+        .jpeg({ quality: 60 }) // Convert to JPEG with 60% quality
+        .toFile(previewPath);
+
+      res.status(200).json({
+        message: "File uploaded successfully",
+        imageId: imageId,
+        previewUrl: `/api/images/preview/${imageId}.jpg`,
+        originalUrl: `/api/images/original/${imageId}${path.extname(
+          req.file.filename
+        )}`,
+      });
+    } catch (error) {
+      console.error("Error processing image:", error);
+      res.status(500).json({ error: "Error processing image" });
+    }
   });
 };
