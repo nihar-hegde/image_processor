@@ -44,11 +44,11 @@ export const processImage = async (req: Request, res: Response) => {
       projectRoot,
       "uploads",
       "preview",
-      `${imageId.split(".")[0]}.jpg`
+      `${imageId.split(".")[0]}_preview.jpg`
     );
 
     await sharp(originalPath)
-      .resize(800)
+      .resize(300) // Smaller size for preview
       .rotate(rotation)
       .modulate({
         brightness: brightness,
@@ -60,10 +60,55 @@ export const processImage = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      previewUrl: `/api/images/preview/${imageId.split(".")[0]}.jpg`,
+      previewUrl: `/api/images/preview/${imageId.split(".")[0]}_preview.jpg`,
     });
   } catch (error) {
     console.error("Error processing image:", error);
     res.status(500).json({ error: "Error processing image" });
+  }
+};
+
+export const getFinalImage = async (req: Request, res: Response) => {
+  const { imageId, brightness, contrast, saturation, rotation, format } =
+    req.body;
+
+  try {
+    const originalPath = path.join(projectRoot, "uploads", "original", imageId);
+    const finalPath = path.join(
+      projectRoot,
+      "uploads",
+      "final",
+      `${imageId.split(".")[0]}_final.${format}`
+    );
+
+    let processing = sharp(originalPath)
+      .rotate(rotation)
+      .modulate({
+        brightness: brightness,
+        saturation: saturation,
+      })
+      .linear(contrast - 1, 0);
+
+    if (format === "png") {
+      processing = processing.png();
+    } else {
+      processing = processing.jpeg({ quality: 90 });
+    }
+
+    await processing.toFile(finalPath);
+
+    res.download(finalPath, `processed_image.${format}`, (err) => {
+      if (err) {
+        console.error("Error downloading file:", err);
+        res.status(500).send("Error downloading file");
+      }
+      // Delete the file after download
+      fs.unlink(finalPath, (unlinkErr) => {
+        if (unlinkErr) console.error("Error deleting file:", unlinkErr);
+      });
+    });
+  } catch (error) {
+    console.error("Error processing final image:", error);
+    res.status(500).json({ error: "Error processing final image" });
   }
 };
