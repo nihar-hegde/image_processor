@@ -43,7 +43,7 @@ export default function EditPage() {
       <h1 className="text-2xl font-bold mb-4">Edit Image</h1>
       <div className="flex flex-col md:flex-row gap-4">
         <div className="w-full md:w-2/3">
-          <img src={previewUrl || ""} alt="Preview" className="w-full h-auto" />
+          <img src={previewUrl || ""} alt="Preview" className="w-96 h-full" />
         </div>
         <div className="w-full md:w-1/3">
           <div className="mb-4">

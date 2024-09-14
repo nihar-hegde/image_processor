@@ -1,6 +1,6 @@
 import express from "express";
-import { uploadImage } from "../controllers/uploadImage";
 import upload from "../services/uploadServices";
+import { uploadImage } from "../controllers/uploadImage";
 
 const UploadRouter = express.Router();
 

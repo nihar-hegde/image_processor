@@ -2,12 +2,17 @@ import multer from "multer";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 
+const projectRoot = process.cwd();
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "..", "uploads", "original"));
+    const uploadPath = path.join(projectRoot, "uploads", "original");
+    console.log("Upload path:", uploadPath);
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     const uniqueFilename = `${uuidv4()}${path.extname(file.originalname)}`;
+    console.log("Generated filename:", uniqueFilename);
     cb(null, uniqueFilename);
   },
 });

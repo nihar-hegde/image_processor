@@ -71,7 +71,7 @@ export default function ImageUploader() {
         const data = await response.json();
         console.log("Upload successful:", data);
         setImageId(data.imageId);
-        setPreviewUrl(data.previewUrl);
+        setPreviewUrl("http://localhost:8080" + data.previewUrl);
         navigate("/edit");
       } else {
         const errorData = await response.json();
