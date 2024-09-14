@@ -7,8 +7,7 @@ import {
 
 const imageRouter = express.Router();
 
-imageRouter.get("/preview/:imageId", getPreviewImage);
-imageRouter.get("/original/:imageId", getOriginalImage);
-imageRouter.get("/process", processImage);
+imageRouter.get("/preview/:filename", getPreviewImage);
+imageRouter.get("/original/:filename", getOriginalImage);
 
 export default imageRouter;
