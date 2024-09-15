@@ -9,9 +9,6 @@ export const getPreviewImage = (req: Request, res: Response) => {
   const filename = req.params.filename;
   const previewPath = path.join(projectRoot, "uploads", "preview", filename);
 
-  console.log("Requested preview filename:", filename);
-  console.log("Constructed preview path:", previewPath);
-
   if (fs.existsSync(previewPath)) {
     res.sendFile(previewPath);
   } else {
@@ -24,9 +21,6 @@ export const getOriginalImage = (req: Request, res: Response) => {
   const filename = req.params.filename;
   const originalPath = path.join(projectRoot, "uploads", "original", filename);
 
-  console.log("Requested original filename:", filename);
-  console.log("Constructed original path:", originalPath);
-
   if (fs.existsSync(originalPath)) {
     res.sendFile(originalPath);
   } else {
@@ -35,8 +29,27 @@ export const getOriginalImage = (req: Request, res: Response) => {
   }
 };
 
+const applyImageEdits = (processing: sharp.Sharp, edits: any) => {
+  const { brightness, contrast, saturation, rotation } = edits;
+  return processing
+    .rotate(parseInt(rotation))
+    .modulate({
+      brightness: parseFloat(brightness),
+      saturation: parseFloat(saturation),
+    })
+    .linear(parseFloat(contrast), -(parseFloat(contrast) - 1) * 128);
+};
+
 export const processImage = async (req: Request, res: Response) => {
-  const { imageId, brightness, contrast, saturation, rotation } = req.body;
+  const {
+    imageId,
+    brightness,
+    contrast,
+    saturation,
+    rotation,
+    cropData,
+    reset,
+  } = req.body;
 
   try {
     const originalPath = path.join(projectRoot, "uploads", "original", imageId);
@@ -47,17 +60,24 @@ export const processImage = async (req: Request, res: Response) => {
       `${imageId.split(".")[0]}_preview.jpg`
     );
 
-    await sharp(originalPath)
+    let processing = sharp(originalPath);
+
+    if (!reset) {
+      if (cropData) {
+        const croppedBuffer = Buffer.from(cropData.split(",")[1], "base64");
+        processing = sharp(croppedBuffer);
+      }
+
+      processing = applyImageEdits(processing, {
+        brightness,
+        contrast,
+        saturation,
+        rotation,
+      });
+    }
+
+    await processing
       .resize(300) // Smaller size for preview
-      .rotate(parseInt(rotation))
-      .modulate({
-        brightness: parseFloat(brightness),
-        saturation: parseFloat(saturation),
-      })
-      .linear(
-        parseFloat(contrast) > 0 ? parseFloat(contrast) : 1,
-        parseFloat(contrast) <= 0 ? -parseFloat(contrast) * 128 : 0
-      )
       .jpeg({ quality: 80 })
       .toFile(previewPath);
 
@@ -72,8 +92,15 @@ export const processImage = async (req: Request, res: Response) => {
 };
 
 export const getFinalImage = async (req: Request, res: Response) => {
-  const { imageId, brightness, contrast, saturation, rotation, format } =
-    req.body;
+  const {
+    imageId,
+    brightness,
+    contrast,
+    saturation,
+    rotation,
+    format,
+    cropData,
+  } = req.body;
 
   try {
     const originalPath = path.join(projectRoot, "uploads", "original", imageId);
@@ -83,18 +110,23 @@ export const getFinalImage = async (req: Request, res: Response) => {
       `${imageId.split(".")[0]}_final.${format}`
     );
 
-    // Ensure the final directory exists
     if (!fs.existsSync(finalDir)) {
       fs.mkdirSync(finalDir, { recursive: true });
     }
 
-    let processing = sharp(originalPath)
-      .rotate(parseInt(rotation))
-      .modulate({
-        brightness: parseFloat(brightness),
-        saturation: parseFloat(saturation),
-      })
-      .linear(parseFloat(contrast), -(parseFloat(contrast) - 1) * 128);
+    let processing = sharp(originalPath);
+
+    if (cropData) {
+      const croppedBuffer = Buffer.from(cropData.split(",")[1], "base64");
+      processing = sharp(croppedBuffer);
+    }
+
+    processing = applyImageEdits(processing, {
+      brightness,
+      contrast,
+      saturation,
+      rotation,
+    });
 
     if (format === "png") {
       processing = processing.png();
@@ -109,7 +141,6 @@ export const getFinalImage = async (req: Request, res: Response) => {
         console.error("Error downloading file:", err);
         res.status(500).send("Error downloading file");
       }
-      // Delete the file after download
       fs.unlink(finalPath, (unlinkErr) => {
         if (unlinkErr) console.error("Error deleting file:", unlinkErr);
       });

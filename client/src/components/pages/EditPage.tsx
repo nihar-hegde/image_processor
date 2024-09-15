@@ -1,55 +1,79 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useImage } from "@/context/imageContext";
 import { Slider } from "../ui/slider";
 import { debounce } from "lodash";
 import { Loader2 } from "lucide-react";
+import ImageCropper from "../main/image-crop";
+
+const initialImageParams = {
+  brightness: 1,
+  contrast: 1,
+  saturation: 1,
+  rotation: 0,
+};
 
 export default function EditPage() {
   const { imageId, previewUrl, setPreviewUrl } = useImage();
-  const [imageParams, setImageParams] = useState({
-    brightness: 1,
-    contrast: 1,
-    saturation: 1,
-    rotation: 0,
-  });
+  const [imageParams, setImageParams] = useState(initialImageParams);
   const [downloadFormat, setDownloadFormat] = useState("jpg");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isCropping, setIsCropping] = useState(false);
+  const [cropData, setCropData] = useState<string | null>(null);
+  const [isEdited, setIsEdited] = useState(false);
   const prevParamsRef = useRef(imageParams);
 
-  const processImage = useCallback(async () => {
-    if (isProcessing) return;
+  const processImage = useCallback(
+    async (newCropData?: string) => {
+      if (isProcessing) return;
 
-    setIsProcessing(true);
-    try {
-      const response = await fetch("http://localhost:8080/api/images/process", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          imageId,
-          ...imageParams,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setPreviewUrl(
-          "http://localhost:8080" +
-            data.previewUrl +
-            "?t=" +
-            new Date().getTime()
+      setIsProcessing(true);
+      try {
+        const response = await fetch(
+          "http://localhost:8080/api/images/process",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              imageId,
+              ...imageParams,
+              cropData: newCropData || cropData,
+              reset: !newCropData && !cropData && !isEdited,
+            }),
+          }
         );
-      } else {
-        throw new Error("Processing failed");
+
+        if (response.ok) {
+          const data = await response.json();
+          setPreviewUrl(
+            "http://localhost:8080" +
+              data.previewUrl +
+              "?t=" +
+              new Date().getTime()
+          );
+          setIsEdited(true);
+        } else {
+          throw new Error("Processing failed");
+        }
+      } catch (error) {
+        console.error("Error processing image:", error);
+      } finally {
+        setIsProcessing(false);
       }
-    } catch (error) {
-      console.error("Error processing image:", error);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [imageId, imageParams, setPreviewUrl, isProcessing]);
+    },
+    [imageId, imageParams, setPreviewUrl, isProcessing, cropData, isEdited]
+  );
+
+  const handleCropComplete = useCallback(
+    (croppedImageData: string) => {
+      setIsCropping(false);
+      setCropData(croppedImageData);
+      processImage(croppedImageData);
+    },
+    [processImage]
+  );
 
   const debouncedProcessImage = useCallback(
     debounce(() => {
@@ -91,11 +115,9 @@ export default function EditPage() {
         },
         body: JSON.stringify({
           imageId,
-          brightness: imageParams.brightness,
-          contrast: imageParams.contrast,
-          saturation: imageParams.saturation,
-          rotation: imageParams.rotation,
+          ...imageParams,
           format: downloadFormat,
+          cropData,
         }),
       });
 
@@ -115,11 +137,17 @@ export default function EditPage() {
       }
     } catch (error) {
       console.error("Error downloading image:", error);
-      // You might want to show an error message to the user here
     } finally {
       setIsProcessing(false);
     }
   };
+
+  const resetEdits = useCallback(() => {
+    setImageParams(initialImageParams);
+    setCropData(null);
+    setIsEdited(false);
+    processImage();
+  }, [processImage]);
 
   return (
     <div className="container mx-auto p-4">
@@ -141,6 +169,15 @@ export default function EditPage() {
               />
             )}
           </div>
+          <Button onClick={() => setIsCropping(true)} className="mt-4 mr-2">
+            Crop Image
+          </Button>
+          <Button onClick={handleDownload} className="mt-4 mr-2">
+            Download Processed Image
+          </Button>
+          <Button onClick={resetEdits} disabled={!isEdited} className="mt-4">
+            Reset Edits
+          </Button>
         </div>
         <div className="w-full md:w-1/3">
           {Object.entries(imageParams).map(([param, value]) => (
@@ -159,22 +196,26 @@ export default function EditPage() {
               />
             </div>
           ))}
+          <div className="mt-4">
+            <label className="block mb-2">Download Format</label>
+            <select
+              value={downloadFormat}
+              onChange={(e) => setDownloadFormat(e.target.value)}
+              className="block w-full p-2 border rounded bg-black"
+            >
+              <option value="jpg">JPG</option>
+              <option value="png">PNG</option>
+            </select>
+          </div>
         </div>
       </div>
-      <div className="mt-4">
-        <label className="block mb-2">Download Format</label>
-        <select
-          value={downloadFormat}
-          onChange={(e) => setDownloadFormat(e.target.value)}
-          className="block w-full p-2 border rounded bg-black"
-        >
-          <option value="jpg">JPG</option>
-          <option value="png">PNG</option>
-        </select>
-      </div>
-      <Button onClick={handleDownload} className="mt-4">
-        Download Processed Image
-      </Button>
+      {isCropping && (
+        <ImageCropper
+          imageUrl={previewUrl || ""}
+          onCropComplete={handleCropComplete}
+          onClose={() => setIsCropping(false)}
+        />
+      )}
     </div>
   );
 }
