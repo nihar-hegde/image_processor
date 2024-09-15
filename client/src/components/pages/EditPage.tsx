@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useImage } from "@/context/imageContext";
 import { Slider } from "../ui/slider";
 import { debounce } from "lodash";
+import { Loader2 } from "lucide-react";
 
 export default function EditPage() {
   const { imageId, previewUrl, setPreviewUrl } = useImage();
@@ -34,7 +35,12 @@ export default function EditPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setPreviewUrl("http://localhost:8080" + data.previewUrl);
+        setPreviewUrl(
+          "http://localhost:8080" +
+            data.previewUrl +
+            "?t=" +
+            new Date().getTime()
+        );
       } else {
         throw new Error("Processing failed");
       }
@@ -77,6 +83,7 @@ export default function EditPage() {
 
   const handleDownload = async () => {
     try {
+      setIsProcessing(true);
       const response = await fetch("http://localhost:8080/api/images/final", {
         method: "POST",
         headers: {
@@ -84,7 +91,10 @@ export default function EditPage() {
         },
         body: JSON.stringify({
           imageId,
-          ...imageParams,
+          brightness: imageParams.brightness,
+          contrast: imageParams.contrast,
+          saturation: imageParams.saturation,
+          rotation: imageParams.rotation,
           format: downloadFormat,
         }),
       });
@@ -100,10 +110,14 @@ export default function EditPage() {
         a.click();
         window.URL.revokeObjectURL(url);
       } else {
-        throw new Error("Download failed");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Download failed");
       }
     } catch (error) {
       console.error("Error downloading image:", error);
+      // You might want to show an error message to the user here
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -112,16 +126,32 @@ export default function EditPage() {
       <h1 className="text-2xl font-bold mb-4">Edit Image</h1>
       <div className="flex flex-col md:flex-row gap-4">
         <div className="w-full md:w-2/3">
-          <img src={previewUrl || ""} alt="Preview" className="w-96 h-full" />
+          <div className="relative w-full h-96 bg-gray-100 flex items-center justify-center overflow-hidden">
+            {isProcessing && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+                <Loader2 className="w-8 h-8 text-white animate-spin" />
+              </div>
+            )}
+            {previewUrl && (
+              <img
+                src={previewUrl}
+                alt="Preview"
+                className="max-w-full max-h-full object-contain"
+                key={previewUrl}
+              />
+            )}
+          </div>
         </div>
         <div className="w-full md:w-1/3">
           {Object.entries(imageParams).map(([param, value]) => (
             <div key={param} className="mb-4">
-              <label className="block mb-2 capitalize">{param}</label>
+              <label className="block mb-2 capitalize">
+                {param}: {value.toFixed(2)}
+              </label>
               <Slider
-                min={param === "rotation" ? 0 : 0}
-                max={param === "rotation" ? 360 : 2}
-                step={param === "rotation" ? 1 : 0.1}
+                min={param === "rotation" ? 0 : param === "contrast" ? 0 : 0}
+                max={param === "rotation" ? 360 : param === "contrast" ? 2 : 2}
+                step={param === "rotation" ? 1 : 0.01}
                 value={[value]}
                 onValueChange={handleSliderChange(
                   param as keyof typeof imageParams
@@ -136,7 +166,7 @@ export default function EditPage() {
         <select
           value={downloadFormat}
           onChange={(e) => setDownloadFormat(e.target.value)}
-          className="block w-full p-2 border rounded"
+          className="block w-full p-2 border rounded bg-black"
         >
           <option value="jpg">JPG</option>
           <option value="png">PNG</option>

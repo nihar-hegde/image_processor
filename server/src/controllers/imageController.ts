@@ -70,26 +70,31 @@ export const processImage = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Error processing image" });
   }
 };
+
 export const getFinalImage = async (req: Request, res: Response) => {
   const { imageId, brightness, contrast, saturation, rotation, format } =
     req.body;
 
   try {
     const originalPath = path.join(projectRoot, "uploads", "original", imageId);
+    const finalDir = path.join(projectRoot, "uploads", "final");
     const finalPath = path.join(
-      projectRoot,
-      "uploads",
-      "final",
+      finalDir,
       `${imageId.split(".")[0]}_final.${format}`
     );
 
+    // Ensure the final directory exists
+    if (!fs.existsSync(finalDir)) {
+      fs.mkdirSync(finalDir, { recursive: true });
+    }
+
     let processing = sharp(originalPath)
-      .rotate(rotation)
+      .rotate(parseInt(rotation))
       .modulate({
-        brightness: brightness,
-        saturation: saturation,
+        brightness: parseFloat(brightness),
+        saturation: parseFloat(saturation),
       })
-      .linear(contrast - 1, 0);
+      .linear(parseFloat(contrast), -(parseFloat(contrast) - 1) * 128);
 
     if (format === "png") {
       processing = processing.png();
