@@ -49,13 +49,16 @@ export const processImage = async (req: Request, res: Response) => {
 
     await sharp(originalPath)
       .resize(300) // Smaller size for preview
-      .rotate(rotation)
+      .rotate(parseInt(rotation))
       .modulate({
-        brightness: brightness,
-        saturation: saturation,
+        brightness: parseFloat(brightness),
+        saturation: parseFloat(saturation),
       })
-      .linear(contrast - 1, 0)
-      .jpeg({ quality: 60 })
+      .linear(
+        parseFloat(contrast) > 0 ? parseFloat(contrast) : 1,
+        parseFloat(contrast) <= 0 ? -parseFloat(contrast) * 128 : 0
+      )
+      .jpeg({ quality: 80 })
       .toFile(previewPath);
 
     res.json({
@@ -67,7 +70,6 @@ export const processImage = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Error processing image" });
   }
 };
-
 export const getFinalImage = async (req: Request, res: Response) => {
   const { imageId, brightness, contrast, saturation, rotation, format } =
     req.body;
