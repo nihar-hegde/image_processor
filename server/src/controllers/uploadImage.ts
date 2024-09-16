@@ -18,16 +18,14 @@ export const uploadImage = async (req: Request, res: Response) => {
     console.log("Original path:", originalPath);
     console.log("Preview path:", previewPath);
 
-    // Ensure the preview directory exists
     const previewDir = path.dirname(previewPath);
     if (!fs.existsSync(previewDir)) {
       fs.mkdirSync(previewDir, { recursive: true });
     }
 
-    // Generate preview image
     await sharp(originalPath)
-      .resize(300) // Resize to 300px width
-      .jpeg({ quality: 70 }) // Convert to JPEG with 70% quality
+      .resize(300)
+      .jpeg({ quality: 70 })
       .toFile(previewPath);
 
     res.status(200).json({

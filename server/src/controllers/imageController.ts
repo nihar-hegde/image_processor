@@ -76,10 +76,7 @@ export const processImage = async (req: Request, res: Response) => {
       });
     }
 
-    await processing
-      .resize(300) // Smaller size for preview
-      .jpeg({ quality: 80 })
-      .toFile(previewPath);
+    await processing.resize(300).jpeg({ quality: 80 }).toFile(previewPath);
 
     res.json({
       success: true,

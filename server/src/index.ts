@@ -17,7 +17,6 @@ const uploadsDir = path.join(projectRoot, "uploads");
 const originalDir = path.join(uploadsDir, "original");
 const previewDir = path.join(uploadsDir, "preview");
 
-// Function to create directory if it doesn't exist
 const createDirIfNotExists = (dir: string) => {
   if (!fs.existsSync(dir)) {
     try {
@@ -32,7 +31,6 @@ const createDirIfNotExists = (dir: string) => {
   }
 };
 
-// Create necessary directories
 try {
   [uploadsDir, originalDir, previewDir].forEach(createDirIfNotExists);
 } catch (error) {
