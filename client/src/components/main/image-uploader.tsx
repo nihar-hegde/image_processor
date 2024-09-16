@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { X, Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,6 @@ export default function ImageUploader() {
   );
 
   const uploadImage = async () => {
-    console.log("Button clicked");
     if (!image) {
       toast({
         title: "No image selected",
@@ -60,22 +59,18 @@ export default function ImageUploader() {
     formData.append("image", image);
 
     try {
-      console.log("Sending request to server...");
       const response = await fetch("http://localhost:8080/api/upload", {
         method: "POST",
         body: formData,
       });
-      console.log("Response received:", response);
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Upload successful:", data);
         setImageId(data.imageId);
         setPreviewUrl("http://localhost:8080" + data.previewUrl);
         navigate("/edit");
       } else {
         const errorData = await response.json();
-        console.error("Upload failed:", errorData);
         throw new Error(errorData.error || "Upload failed");
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

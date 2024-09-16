@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useImage } from "@/context/imageContext";
+import { useWebSocket } from "@/context/websocketContext";
 import { Slider } from "../ui/slider";
 import { debounce } from "lodash";
 import { Loader2 } from "lucide-react";
@@ -15,6 +16,7 @@ const initialImageParams = {
 
 export default function EditPage() {
   const { imageId, previewUrl, setPreviewUrl } = useImage();
+  const { sendMessage, lastMessage } = useWebSocket();
   const [imageParams, setImageParams] = useState(initialImageParams);
   const [downloadFormat, setDownloadFormat] = useState("jpg");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -23,54 +25,34 @@ export default function EditPage() {
   const [isEdited, setIsEdited] = useState(false);
   const prevParamsRef = useRef(imageParams);
 
-  const processImage = useCallback(
-    async (newCropData?: string) => {
-      if (isProcessing) return;
-
+  const processImage = useCallback(() => {
+    if (imageId) {
+      sendMessage({
+        type: "imageEdit",
+        imageId,
+        ...imageParams,
+        cropData,
+      });
       setIsProcessing(true);
-      try {
-        const response = await fetch(
-          "http://localhost:8080/api/images/process",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              imageId,
-              ...imageParams,
-              cropData: newCropData || cropData,
-              reset: !newCropData && !cropData && !isEdited,
-            }),
-          }
-        );
+    }
+  }, [imageId, imageParams, cropData, sendMessage]);
 
-        if (response.ok) {
-          const data = await response.json();
-          setPreviewUrl(
-            "http://localhost:8080" +
-              data.previewUrl +
-              "?t=" +
-              new Date().getTime()
-          );
-          setIsEdited(true);
-        } else {
-          throw new Error("Processing failed");
-        }
-      } catch (error) {
-        console.error("Error processing image:", error);
-      } finally {
-        setIsProcessing(false);
-      }
-    },
-    [imageId, imageParams, setPreviewUrl, isProcessing, cropData, isEdited]
-  );
+  useEffect(() => {
+    if (lastMessage && lastMessage.type === "previewUpdate") {
+      setPreviewUrl("http://localhost:8080" + lastMessage.previewUrl);
+      setIsProcessing(false);
+      setIsEdited(true);
+    } else if (lastMessage && lastMessage.type === "error") {
+      console.error("Error processing image:", lastMessage.message);
+      setIsProcessing(false);
+    }
+  }, [lastMessage, setPreviewUrl]);
 
   const handleCropComplete = useCallback(
     (croppedImageData: string) => {
       setIsCropping(false);
       setCropData(croppedImageData);
-      processImage(croppedImageData);
+      processImage();
     },
     [processImage]
   );

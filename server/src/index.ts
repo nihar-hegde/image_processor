@@ -4,10 +4,16 @@ import path from "path";
 import fs from "fs";
 import uploadRouter from "./routes/uploadRouter";
 import imageRouter from "./routes/imageRouter";
+import http from "http";
+import { WebSocketServer, WebSocket } from "ws";
+import { handleWebSocketMessage } from "./websocket/webscokethandler";
 
 const port = 8080;
 
 const app = express();
+
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
 
 app.use(cors());
 app.use(express.json());
@@ -17,7 +23,6 @@ const uploadsDir = path.join(projectRoot, "uploads");
 const originalDir = path.join(uploadsDir, "original");
 const previewDir = path.join(uploadsDir, "preview");
 
-// Function to create directory if it doesn't exist
 const createDirIfNotExists = (dir: string) => {
   if (!fs.existsSync(dir)) {
     try {
@@ -32,7 +37,6 @@ const createDirIfNotExists = (dir: string) => {
   }
 };
 
-// Create necessary directories
 try {
   [uploadsDir, originalDir, previewDir].forEach(createDirIfNotExists);
 } catch (error) {
@@ -43,11 +47,23 @@ try {
 app.use("/api", uploadRouter);
 app.use("/api/images", imageRouter);
 
-app.get("/", (req, res) => {
-  res.send("Hello World!");
+// websocket server for image processing.
+
+wss.on("connection", (ws: WebSocket) => {
+  console.log("New WebSocket connection");
+
+  ws.on("message", (message: string) => {
+    // Handle incoming WebSocket messages
+    const data = JSON.parse(message);
+    handleWebSocketMessage(ws, data);
+  });
+
+  ws.on("close", () => {
+    console.log("WebSocket connection closed");
+  });
 });
 
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server is running on port ${port}`);
   console.log(`Uploads directory: ${uploadsDir}`);
   console.log(`Original images directory: ${originalDir}`);

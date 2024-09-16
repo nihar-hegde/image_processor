@@ -40,16 +40,9 @@ const applyImageEdits = (processing: sharp.Sharp, edits: any) => {
     .linear(parseFloat(contrast), -(parseFloat(contrast) - 1) * 128);
 };
 
-export const processImage = async (req: Request, res: Response) => {
-  const {
-    imageId,
-    brightness,
-    contrast,
-    saturation,
-    rotation,
-    cropData,
-    reset,
-  } = req.body;
+export const processImage = async (imageId: string, editParams: any) => {
+  const { brightness, contrast, saturation, rotation, cropData, reset } =
+    editParams;
 
   try {
     const originalPath = path.join(projectRoot, "uploads", "original", imageId);
@@ -81,13 +74,13 @@ export const processImage = async (req: Request, res: Response) => {
       .jpeg({ quality: 80 })
       .toFile(previewPath);
 
-    res.json({
-      success: true,
-      previewUrl: `/api/images/preview/${imageId.split(".")[0]}_preview.jpg`,
-    });
+    const previewUrl = `/api/images/preview/${
+      imageId.split(".")[0]
+    }_preview.jpg?t=${new Date().getTime()}`;
+    return { previewUrl };
   } catch (error) {
     console.error("Error processing image:", error);
-    res.status(500).json({ error: "Error processing image" });
+    throw error;
   }
 };
 
@@ -129,9 +122,9 @@ export const getFinalImage = async (req: Request, res: Response) => {
     });
 
     if (format === "png") {
-      processing = processing.png();
+      processing = processing.png({ quality: 100 });
     } else {
-      processing = processing.jpeg({ quality: 90 });
+      processing = processing.jpeg({ quality: 100 });
     }
 
     await processing.toFile(finalPath);
